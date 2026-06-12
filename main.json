@@ -1,0 +1,596 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "amount": 166
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -4864,
+        464
+      ],
+      "id": "80f2a355-3d6e-4598-9770-ac84b0ac77d7",
+      "name": "Wait (166s)",
+      "webhookId": "wait-webhook-id"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 10 * * 1-5"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -7552,
+        384
+      ],
+      "id": "3e3b4eb7-daac-4ac3-a57e-b838758f8116",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "start_calc",
+              "name": "start_row",
+              "value": 2,
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -7328,
+        384
+      ],
+      "id": "45521f91-c089-4177-b2a2-b905a100ec0a",
+      "name": "Calculate Range1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "check-empty",
+              "leftValue": "={{ $json.values.isEmpty() }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -6656,
+        384
+      ],
+      "id": "123db680-0680-4b85-bd4b-f689cacf4757",
+      "name": "Check If Empty1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "check-valid",
+              "leftValue": "={{ $json.isEmpty === false }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -6208,
+        384
+      ],
+      "id": "664eecdf-685b-450b-a0b8-863ae81deeb8",
+      "name": "Check Valid1"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -5984,
+        384
+      ],
+      "id": "1a473852-8087-42f2-9dee-2618429c4f35",
+      "name": "Loop Through Leads1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "assistant-id",
+              "name": "assistantID",
+              "value": "5f5cc27e-4a73-4601-9829-5ec7e2c6a19c",
+              "type": "string"
+            },
+            {
+              "id": "lead-phone",
+              "name": "leadPhoneNumber",
+              "value": "={{ $json.Phone }}",
+              "type": "string"
+            },
+            {
+              "id": "lead-name",
+              "name": "leadName",
+              "value": "={{ $json.Name }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -5760,
+        384
+      ],
+      "id": "63f5858b-50cd-42ec-9ddc-2b88d37264e1",
+      "name": "Prepare Call1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const DEFAULT_COUNTRY_CODE = '1';\nlet phone = $input.first().json.leadPhoneNumber || '';\nlet originalPhone = phone;\nconst e164Regex = /^\\+[1-9]\\d{9,14}$/;\nif (e164Regex.test(phone)) {\n  return { json: { ...$input.first().json, leadPhoneNumber: phone, phoneFormatted: true, originalPhoneNumber: originalPhone } };\n}\nlet hasPlus = phone.startsWith('+');\nlet digits = phone.replace(/\\D/g, '');\nif (digits.length === 0) {\n  return { json: { ...$input.first().json, leadPhoneNumber: '', phoneFormatted: false, phoneFormatError: 'No digits', originalPhoneNumber: originalPhone } };\n}\nlet formattedNumber;\nif (hasPlus) {\n  formattedNumber = '+' + digits;\n} else if (digits.length === 10) {\n  formattedNumber = '+' + DEFAULT_COUNTRY_CODE + digits;\n} else if (digits.length === 11 && digits.startsWith('1')) {\n  formattedNumber = '+' + digits;\n} else if (digits.length > 10 && digits.length <= 15) {\n  formattedNumber = '+' + digits;\n} else if (digits.length < 10) {\n  return { json: { ...$input.first().json, leadPhoneNumber: '+' + DEFAULT_COUNTRY_CODE + digits, phoneFormatted: false, phoneFormatError: 'Incomplete', originalPhoneNumber: originalPhone } };\n} else {\n  return { json: { ...$input.first().json, leadPhoneNumber: phone, phoneFormatted: false, phoneFormatError: 'Too long', originalPhoneNumber: originalPhone } };\n}\nif (e164Regex.test(formattedNumber)) {\n  return { json: { ...$input.first().json, leadPhoneNumber: formattedNumber, phoneFormatted: true, originalPhoneNumber: originalPhone } };\n} else {\n  return { json: { ...$input.first().json, leadPhoneNumber: formattedNumber, phoneFormatted: false, phoneFormatError: 'Invalid', originalPhoneNumber: originalPhone } };\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5536,
+        384
+      ],
+      "id": "9b5688f4-5a81-40c7-a52e-21d65d802f25",
+      "name": "E.164 Format1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "validate-name",
+              "leftValue": "={{ $json.leadName }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            },
+            {
+              "id": "validate-phone",
+              "leftValue": "={{ $json.phoneFormatted }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -5312,
+        384
+      ],
+      "id": "bcfcdd84-0557-4794-b1de-059a592f095a",
+      "name": "Validate Lead1"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        -5088,
+        480
+      ],
+      "id": "19311580-58e0-4e84-b9ee-4d37ce0b0b90",
+      "name": "Skip Invalid1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const processedCount = $('Loop Through Leads1').context.noItemsLeft ? $('Loop Through Leads1').context.currentRunIndex + 1 : 0;\nreturn { json: { itemsProcessed: processedCount, deleteCount: processedCount } };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5760,
+        192
+      ],
+      "id": "9b82c7b6-47ad-4360-91e4-a032d01e3375",
+      "name": "Count Processed1"
+    },
+    {
+      "parameters": {
+        "url": "https://sheets.googleapis.com/v4/spreadsheets/16AaGiZWYAoCmjtQToY5-l5C0PRYC2IsUZ4JiEheuZMI/values/Leads!A1:B1",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -7104,
+        384
+      ],
+      "id": "ebef55f8-d816-4426-8bd8-e56c072c4b8c",
+      "name": "Fetch Headers",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Zq1u7fppq87mE1Yh",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://sheets.googleapis.com/v4/spreadsheets/16AaGiZWYAoCmjtQToY5-l5C0PRYC2IsUZ4JiEheuZMI/values/Leads!A2:B131",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -6880,
+        384
+      ],
+      "id": "e0272d2d-e8fd-4a53-a713-02266747f61f",
+      "name": "Fetch Batch",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Zq1u7fppq87mE1Yh",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const headersResponse = $('Fetch Headers').first().json;\n\n// Updated the fallback headers list to match your new 'Pre-Call' sheet structure\nconst headers = headersResponse.values ? headersResponse.values[0] : [\n  \"Full name\",\n  \"Work \",\n  \"Mobile\",\n  \"Email\",\n  \"First Name\",\n  \"Ex #\",\n  \"Phone Number\",\n  \"Last Name\",\n  \"Person City\",\n  \"Person State\",\n  \"Company Name\",\n  \"Revenue Range (in USD)\",\n  \"All Industries\",\n  \"All Sub-Industries\"\n];\n\nconst batchResponse = $('Fetch Batch').first().json;\nconst dataValues = batchResponse.values || [];\n\nif (dataValues.length === 0) {\n  return [{ json: { isEmpty: true } }];\n}\n\nconst startRow = $('Calculate Range1').first().json.start_row;\n\nreturn dataValues.map((row, index) => {\n  const result = { row_number: startRow + index };\n  headers.forEach((header, colIndex) => {\n    // Maps the value at the specific index to the header name\n    result[header] = row[colIndex] || '';\n  });\n  return { json: result };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -6432,
+        384
+      ],
+      "id": "62922ec3-3434-44be-a4ea-b97f91387c93",
+      "name": "Combine Headers & Data"
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "documentId": {
+          "__rl": true,
+          "value": "16AaGiZWYAoCmjtQToY5-l5C0PRYC2IsUZ4JiEheuZMI",
+          "mode": "list",
+          "cachedResultName": "Tamaka Outbound Leads",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/16AaGiZWYAoCmjtQToY5-l5C0PRYC2IsUZ4JiEheuZMI/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Leads",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/16AaGiZWYAoCmjtQToY5-l5C0PRYC2IsUZ4JiEheuZMI/edit#gid=0"
+        },
+        "numberToDelete": "={{ $json.deleteCount - 3  }}"
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -5536,
+        192
+      ],
+      "id": "fbc5a07d-58cc-4056-a9ae-af492be2d888",
+      "name": "Delete Processed Rows",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Zq1u7fppq87mE1Yh",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.retellai.com/v2/create-phone-call",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer key_030217b895e69ceabd748e67dbfe"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "from_number",
+              "value": "+18557656432"
+            },
+            {
+              "name": "to_number",
+              "value": "={{ $json.leadPhoneNumber }}"
+            },
+            {
+              "name": "override_agent_id",
+              "value": "agent_5080cc8df3a0ffebcc9cf64a9b"
+            },
+            {
+              "name": "retell_llm_dynamic_variables",
+              "value": "={{ \n  {\n    \"company_name\": $json.leadName\n  } \n}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "0f9107fb-5f08-4f4b-aa19-d2f1bbd8fe60",
+      "name": "Trigger Retell Call1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -5088,
+        288
+      ]
+    }
+  ],
+  "connections": {
+    "Wait (166s)": {
+      "main": [
+        [
+          {
+            "node": "Loop Through Leads1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Calculate Range1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Range1": {
+      "main": [
+        [
+          {
+            "node": "Fetch Headers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check If Empty1": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Combine Headers & Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Valid1": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Loop Through Leads1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Through Leads1": {
+      "main": [
+        [
+          {
+            "node": "Count Processed1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Call1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Call1": {
+      "main": [
+        [
+          {
+            "node": "E.164 Format1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "E.164 Format1": {
+      "main": [
+        [
+          {
+            "node": "Validate Lead1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Lead1": {
+      "main": [
+        [
+          {
+            "node": "Trigger Retell Call1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Skip Invalid1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Skip Invalid1": {
+      "main": [
+        [
+          {
+            "node": "Wait (166s)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Count Processed1": {
+      "main": [
+        [
+          {
+            "node": "Delete Processed Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Headers": {
+      "main": [
+        [
+          {
+            "node": "Fetch Batch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Batch": {
+      "main": [
+        [
+          {
+            "node": "Check If Empty1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combine Headers & Data": {
+      "main": [
+        [
+          {
+            "node": "Check Valid1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger Retell Call1": {
+      "main": [
+        [
+          {
+            "node": "Wait (166s)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {
+    "Schedule Trigger": [
+      {
+        "timestamp": "2026-03-09T09:39:00.004-05:00",
+        "Readable date": "March 9th 2026, 9:39:00 am",
+        "Readable time": "9:39:00 am",
+        "Day of week": "Monday",
+        "Year": "2026",
+        "Month": "March",
+        "Day of month": "09",
+        "Hour": "09",
+        "Minute": "39",
+        "Second": "00",
+        "Timezone": "America/Chicago (UTC-05:00)"
+      }
+    ]
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "26610f30047e28f65aa76684fe4e53947d02e055fa9d3d587e2ec9d1fec71478"
+  }
+}
